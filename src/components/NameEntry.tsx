@@ -8,8 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  type ViewStyle,
 } from 'react-native';
 import { PlayerNames, MatchConfig, DeuceMode } from '../types/scoring';
+import { BrandHeader } from './BrandHeader';
 
 interface Props {
   onStart: (names: PlayerNames, config: MatchConfig) => void;
@@ -23,7 +25,7 @@ export function NameEntry({ onStart }: Props) {
   const [firstServer, setFirstServer] = useState<'A' | 'B'>('A');
   const [deuceMode, setDeuceMode] = useState<DeuceMode>('advantage');
 
-  const canStart = a1.trim() && a2.trim() && b1.trim() && b2.trim();
+  const canStart = Boolean(a1.trim() && a2.trim() && b1.trim() && b2.trim());
 
   const handleStart = () => {
     if (!canStart) return;
@@ -42,69 +44,21 @@ export function NameEntry({ onStart }: Props) {
   const teamALabel = a1.trim() && a2.trim() ? `${a1.trim()} & ${a2.trim()}` : 'Team A';
   const teamBLabel = b1.trim() && b2.trim() ? `${b1.trim()} & ${b2.trim()}` : 'Team B';
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.wrapper}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+  const scrollBody = (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={[
+        styles.container,
+        Platform.OS === 'web'
+          ? ({ minHeight: '100vh' } as unknown as ViewStyle)
+          : null,
+      ]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator
     >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.title}>PADEL</Text>
-        <Text style={styles.subtitle}>SCOREKEEPER</Text>
+      <BrandHeader size="large" />
 
-        <View style={styles.teamSection}>
-          <View style={styles.teamHeader}>
-            <View style={[styles.teamDot, { backgroundColor: '#0050d4' }]} />
-            <Text style={styles.teamTitle}>TEAM A</Text>
-          </View>
-          <TextInput
-            style={styles.input}
-            placeholder="Player 1 name"
-            placeholderTextColor="#3a5a7c"
-            value={a1}
-            onChangeText={setA1}
-            autoCapitalize="words"
-            returnKeyType="next"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Player 2 name"
-            placeholderTextColor="#3a5a7c"
-            value={a2}
-            onChangeText={setA2}
-            autoCapitalize="words"
-            returnKeyType="next"
-          />
-        </View>
-
-        <View style={styles.teamSection}>
-          <View style={styles.teamHeader}>
-            <View style={[styles.teamDot, { backgroundColor: '#1a6bff' }]} />
-            <Text style={styles.teamTitle}>TEAM B</Text>
-          </View>
-          <TextInput
-            style={styles.input}
-            placeholder="Player 1 name"
-            placeholderTextColor="#3a5a7c"
-            value={b1}
-            onChangeText={setB1}
-            autoCapitalize="words"
-            returnKeyType="next"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Player 2 name"
-            placeholderTextColor="#3a5a7c"
-            value={b2}
-            onChangeText={setB2}
-            autoCapitalize="words"
-            returnKeyType="done"
-            onSubmitEditing={handleStart}
-          />
-        </View>
-
+      <View style={styles.setupCard}>
         <Text style={styles.sectionLabel}>WHO SERVES FIRST?</Text>
         <View style={styles.toggleRow}>
           <TouchableOpacity
@@ -150,16 +104,77 @@ export function NameEntry({ onStart }: Props) {
             <Text style={styles.toggleHint}>40–40: next point wins</Text>
           </TouchableOpacity>
         </View>
+      </View>
 
-        <TouchableOpacity
-          style={[styles.startButton, !canStart && styles.startButtonDisabled]}
-          onPress={handleStart}
-          disabled={!canStart}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.startButtonText}>START MATCH</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      <View style={styles.teamSection}>
+        <View style={styles.teamHeader}>
+          <View style={[styles.teamDot, { backgroundColor: '#0050d4' }]} />
+          <Text style={styles.teamTitle}>TEAM A</Text>
+        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Player 1 name"
+          placeholderTextColor="#3a5a7c"
+          value={a1}
+          onChangeText={setA1}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Player 2 name"
+          placeholderTextColor="#3a5a7c"
+          value={a2}
+          onChangeText={setA2}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
+      </View>
+
+      <View style={styles.teamSection}>
+        <View style={styles.teamHeader}>
+          <View style={[styles.teamDot, { backgroundColor: '#1a6bff' }]} />
+          <Text style={styles.teamTitle}>TEAM B</Text>
+        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Player 1 name"
+          placeholderTextColor="#3a5a7c"
+          value={b1}
+          onChangeText={setB1}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Player 2 name"
+          placeholderTextColor="#3a5a7c"
+          value={b2}
+          onChangeText={setB2}
+          autoCapitalize="words"
+          returnKeyType="done"
+          onSubmitEditing={handleStart}
+        />
+      </View>
+
+      <TouchableOpacity
+        style={[styles.startButton, !canStart && styles.startButtonDisabled]}
+        onPress={handleStart}
+        disabled={!canStart}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.startButtonText}>START MATCH</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+  if (Platform.OS === 'web') {
+    return <View style={styles.wrapper}>{scrollBody}</View>;
+  }
+
+  return (
+    <KeyboardAvoidingView style={styles.wrapper} behavior="padding">
+      {scrollBody}
     </KeyboardAvoidingView>
   );
 }
@@ -169,30 +184,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#060d18',
   },
+  scroll: {
+    flex: 1,
+  },
   container: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 32,
-    paddingVertical: 40,
+    paddingTop: 24,
+    paddingBottom: 48,
   },
-  title: {
-    color: '#ffffff',
-    fontSize: 40,
-    fontWeight: '900',
-    letterSpacing: 10,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: '#3a5a7c',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 6,
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 28,
+  setupCard: {
+    borderWidth: 1,
+    borderColor: '#1e4a72',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    backgroundColor: '#0a1424',
   },
   teamSection: {
-    marginBottom: 28,
+    marginBottom: 22,
   },
   teamHeader: {
     flexDirection: 'row',
@@ -224,7 +234,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionLabel: {
-    color: '#8aa8c7',
+    color: '#a8c8e8',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 2,
@@ -234,13 +244,13 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 20,
+    marginBottom: 14,
   },
   toggleBtn: {
     flex: 1,
-    backgroundColor: '#0a1628',
+    backgroundColor: '#0f2038',
     borderWidth: 2,
-    borderColor: '#1a3a5c',
+    borderColor: '#2a5588',
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 10,
@@ -248,10 +258,10 @@ const styles = StyleSheet.create({
   },
   toggleBtnActive: {
     borderColor: '#0050d4',
-    backgroundColor: '#0d1f3d',
+    backgroundColor: '#152a4a',
   },
   toggleBtnText: {
-    color: '#8aa8c7',
+    color: '#c8d8e8',
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
@@ -260,7 +270,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   toggleHint: {
-    color: '#4a6a8c',
+    color: '#6a8aac',
     fontSize: 10,
     marginTop: 4,
     textAlign: 'center',
@@ -270,7 +280,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 16,
+    marginBottom: 24,
   },
   startButtonDisabled: {
     opacity: 0.3,

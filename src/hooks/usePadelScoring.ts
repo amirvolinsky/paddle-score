@@ -241,9 +241,6 @@ export function buildPointRallySpeechText(score: GameScore, names?: PlayerNames)
   const receiverTeam: 'A' | 'B' = serverIsA ? 'B' : 'A';
 
   if (score.isDeuce && score.teamA === '40' && score.teamB === '40') {
-    if (score.deuceMode === 'golden_point') {
-      return 'נקודת הכרעה.';
-    }
     return 'שוויון.';
   }
 
@@ -315,6 +312,40 @@ export function buildSpeechText(score: GameScore, names: PlayerNames): string {
   return '';
 }
 
+/**
+ * After crowd cheer for game/set/match end: totals only (no leading "גיים…" — cheer marks the break).
+ */
+export function buildSpeechTextAfterCrowdCheer(score: GameScore, names: PlayerNames): string {
+  const serverIsA = score.server === 'A';
+  const serverTeam: 'A' | 'B' = serverIsA ? 'A' : 'B';
+  const receiverTeam: 'A' | 'B' = serverIsA ? 'B' : 'A';
+  const serverLabel = teamName(names, serverTeam);
+  const receiverLabel = teamName(names, receiverTeam);
+
+  const serverGames = serverIsA ? score.gamesA : score.gamesB;
+  const receiverGames = serverIsA ? score.gamesB : score.gamesA;
+  const serverSets = serverIsA ? score.setsA : score.setsB;
+  const receiverSets = serverIsA ? score.setsB : score.setsA;
+
+  if (score.lastEvent === 'match_won') {
+    const winnerSets = score.winner === 'A' ? score.setsA : score.setsB;
+    const loserSets = score.winner === 'A' ? score.setsB : score.setsA;
+    return `${hebNum(winnerSets)}, ${hebNum(loserSets)}.`;
+  }
+
+  if (score.lastEvent === 'set_won') {
+    const wGames = score.lastSetWinner === 'A' ? score.prevGamesA + 1 : score.prevGamesA;
+    const lGames = score.lastSetWinner === 'A' ? score.prevGamesB : score.prevGamesB + 1;
+    return `${hebNum(wGames)}, ${hebNum(lGames)}. סטים: ${hebNum(serverSets)}, ${hebNum(receiverSets)}. סרבים של.`;
+  }
+
+  if (score.lastEvent === 'game_won') {
+    return `${serverLabel} ${hebNum(serverGames)}, ${receiverLabel} ${hebNum(receiverGames)}. סרבים של ${serverLabel}.`;
+  }
+
+  return '';
+}
+
 function pointToClip(p: PadelPoint): ClipId {
   switch (p) {
     case '0':
@@ -344,9 +375,6 @@ export function buildPointRallyAnnouncementSteps(score: GameScore, names?: Playe
   const receiverTeam: 'A' | 'B' = serverIsA ? 'B' : 'A';
 
   if (score.isDeuce && score.teamA === '40' && score.teamB === '40') {
-    if (score.deuceMode === 'golden_point') {
-      return [{ type: 'tts', text: 'נקודת הכרעה' }];
-    }
     return [{ type: 'clip', id: 'dius' }];
   }
 

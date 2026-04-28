@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   ScrollView,
   Platform,
+  type ViewStyle,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
@@ -14,6 +15,8 @@ import { ScoreDisplay } from './src/components/ScoreDisplay';
 import { SimulationPanel } from './src/components/SimulationPanel';
 import { ConnectionStatus } from './src/components/StatusBar';
 import { NameEntry } from './src/components/NameEntry';
+import { BrandHeader } from './src/components/BrandHeader';
+import { GlobalTapScoreLayer } from './src/components/GlobalTapScoreLayer';
 import { announceScore, warmUpNameVoice } from './src/services/speechService';
 import { initBLE, isConnected } from './src/services/bleService';
 import { initWatch, sendScoreToWatch } from './src/services/watchService';
@@ -90,55 +93,73 @@ export default function App() {
 
   if (!playerNames) {
     return (
-      <>
+      <View style={styles.nameEntryRoot}>
         <StatusBar style="light" />
         <NameEntry onStart={handleMatchStart} />
-      </>
+      </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        bounces={false}
+      <GlobalTapScoreLayer
+        onTeamA={pointTeamA}
+        onTeamB={pointTeamB}
+        onUndo={undo}
+        canUndo={canUndo}
+        style={styles.tapLayer}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>PADEL</Text>
-          <Text style={styles.subtitle}>SCOREKEEPER</Text>
-        </View>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <BrandHeader size="compact" />
+          </View>
 
-        <ConnectionStatus score={score} bleConnected={bleConnected} names={playerNames} />
+          <ConnectionStatus score={score} bleConnected={bleConnected} names={playerNames} />
 
-        <View style={styles.scoreContainer}>
-          <ScoreDisplay score={score} names={playerNames} />
-        </View>
+          <View style={styles.scoreContainer}>
+            <ScoreDisplay score={score} names={playerNames} />
+          </View>
 
-        <SimulationPanel
-          onTeamA={pointTeamA}
-          onTeamB={pointTeamB}
-          onUndo={undo}
-          onReset={handleNewMatch}
-          canUndo={canUndo}
-          names={playerNames}
-        />
+          <SimulationPanel
+            onTeamA={pointTeamA}
+            onTeamB={pointTeamB}
+            onUndo={undo}
+            onReset={handleNewMatch}
+            canUndo={canUndo}
+            names={playerNames}
+          />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            BLE: 1 Click = Team A · 2 Clicks = Team B · Long Press = Undo
-          </Text>
-        </View>
-      </ScrollView>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              Tap anywhere: 1× Team A · 2× Team B · hold 3s Undo · buttons still work
+            </Text>
+          </View>
+        </ScrollView>
+      </GlobalTapScoreLayer>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  nameEntryRoot: {
+    flex: 1,
+    backgroundColor: '#060d18',
+    ...(Platform.OS === 'web'
+    ? ({ minHeight: '100vh' } as unknown as ViewStyle)
+    : {}),
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#060d18',
+  },
+  tapLayer: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -151,19 +172,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: Platform.OS === 'ios' ? 10 : 40,
     paddingBottom: 10,
-  },
-  title: {
-    color: '#ffffff',
-    fontSize: 32,
-    fontWeight: '900',
-    letterSpacing: 8,
-  },
-  subtitle: {
-    color: '#3a5a7c',
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 6,
-    marginTop: 2,
   },
   scoreContainer: {
     flex: 1,

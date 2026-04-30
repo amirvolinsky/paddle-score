@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "Padel Scorekeeper",
+    "slug": "paddle-score",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0d0d1a"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.paddle.scorekeeper",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Padel Scorekeeper uses Bluetooth to connect to a BLE scoring button for hands-free point tracking during matches.",
+        "NSBluetoothPeripheralUsageDescription": "Padel Scorekeeper uses Bluetooth to connect to a BLE scoring button.",
+        "NSMicrophoneUsageDescription": "Padel Scorekeeper may use the microphone for voice commands.",
+        "UIBackgroundModes": [
+          "audio",
+          "bluetooth-central"
+        ]
+      },
+      "backgroundColor": "#0d0d1a"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0d0d1a"
+      },
+      "package": "com.paddle.scorekeeper",
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_CONNECT",
+        "BLUETOOTH_SCAN",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "./plugins/withWatchApp"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    }
+  }
+}

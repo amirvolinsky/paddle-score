@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 
-/** Delay before single tap commits (allows double tap to cancel). */
-const SINGLE_TAP_DELAY_MS = 320;
-/** Two releases closer than this count as double tap → Team B. */
-const DOUBLE_TAP_MAX_GAP_MS = 350;
+/** If second tap arrives in this forgiving window, convert to Team B. */
+const DOUBLE_TAP_MAX_GAP_MS = 1500;
 /** After holding this long, release does not count as a tap (covers undo hold & non-undo long press). */
 const LONG_HOLD_IGNORE_TAP_MS = 2800;
 const UNDO_LONG_PRESS_MS = 3000;
@@ -34,19 +32,20 @@ export function GlobalTapScoreLayer({
   canUndo,
   style,
 }: Props) {
-  const pendingSingleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const firstReleaseAtRef = useRef<number>(0);
+  const pendingTeamAForDoubleRef = useRef(false);
+  const firstTapAtRef = useRef<number>(0);
+  const doubleTapWindowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longUndoFiredRef = useRef(false);
   const pressStartedAtRef = useRef<number>(0);
 
-  const clearPendingSingle = useCallback(() => {
-    if (pendingSingleRef.current) {
-      clearTimeout(pendingSingleRef.current);
-      pendingSingleRef.current = null;
+  const clearDoubleTapWindow = useCallback(() => {
+    if (doubleTapWindowTimerRef.current) {
+      clearTimeout(doubleTapWindowTimerRef.current);
+      doubleTapWindowTimerRef.current = null;
     }
   }, []);
 
-  useEffect(() => () => clearPendingSingle(), [clearPendingSingle]);
+  useEffect(() => () => clearDoubleTapWindow(), [clearDoubleTapWindow]);
 
   const handlePressIn = useCallback(() => {
     longUndoFiredRef.current = false;
@@ -56,10 +55,11 @@ export function GlobalTapScoreLayer({
   const handleLongPress = useCallback(() => {
     if (!canUndo) return;
     longUndoFiredRef.current = true;
-    clearPendingSingle();
-    firstReleaseAtRef.current = 0;
+    clearDoubleTapWindow();
+    pendingTeamAForDoubleRef.current = false;
+    firstTapAtRef.current = 0;
     onUndo();
-  }, [canUndo, onUndo, clearPendingSingle]);
+  }, [canUndo, onUndo, clearDoubleTapWindow]);
 
   const handlePressOut = useCallback(() => {
     if (longUndoFiredRef.current) {
@@ -73,23 +73,28 @@ export function GlobalTapScoreLayer({
     }
 
     const now = Date.now();
-    const prevFirst = firstReleaseAtRef.current;
+    const prevFirstTap = firstTapAtRef.current;
 
-    if (prevFirst > 0 && now - prevFirst < DOUBLE_TAP_MAX_GAP_MS) {
-      clearPendingSingle();
-      firstReleaseAtRef.current = 0;
+    if (pendingTeamAForDoubleRef.current && prevFirstTap > 0 && now - prevFirstTap <= DOUBLE_TAP_MAX_GAP_MS) {
+      clearDoubleTapWindow();
+      pendingTeamAForDoubleRef.current = false;
+      firstTapAtRef.current = 0;
+      // First tap already awarded Team A instantly; undo it and apply Team B.
+      onUndo();
       onTeamB();
       return;
     }
 
-    firstReleaseAtRef.current = now;
-    clearPendingSingle();
-    pendingSingleRef.current = setTimeout(() => {
-      pendingSingleRef.current = null;
-      firstReleaseAtRef.current = 0;
-      onTeamA();
-    }, SINGLE_TAP_DELAY_MS);
-  }, [onTeamA, onTeamB, clearPendingSingle]);
+    onTeamA();
+    pendingTeamAForDoubleRef.current = true;
+    firstTapAtRef.current = now;
+    clearDoubleTapWindow();
+    doubleTapWindowTimerRef.current = setTimeout(() => {
+      pendingTeamAForDoubleRef.current = false;
+      firstTapAtRef.current = 0;
+      doubleTapWindowTimerRef.current = null;
+    }, DOUBLE_TAP_MAX_GAP_MS);
+  }, [onTeamA, onTeamB, onUndo, clearDoubleTapWindow]);
 
   return (
     <Pressable

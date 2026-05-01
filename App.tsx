@@ -26,11 +26,14 @@ import { initBLE, isConnected } from './src/services/bleService';
 import { initWatch, sendScoreToWatch } from './src/services/watchService';
 import { GameScore, PlayerNames, MatchConfig } from './src/types/scoring';
 
+const POINT_ANNOUNCE_DELAY_MS = 1500;
+
 export default function App() {
   const { score, canUndo, pointTeamA, pointTeamB, undo, reset, initMatch, loadTestPreTieBreak, loadTestPreGameWin } = usePadelScoring();
   const [bleConnected, setBleConnected] = useState(false);
   const [playerNames, setPlayerNames] = useState<PlayerNames | null>(null);
   const prevScoreRef = useRef<GameScore | null>(null);
+  const pendingPointAnnounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const isMatchActive = playerNames !== null;
@@ -109,12 +112,31 @@ export default function App() {
       prev.lastEvent !== score.lastEvent;
 
     if (scoreChanged) {
-      announceScore(score, playerNames);
       sendScoreToWatch(score);
+      if (pendingPointAnnounceTimerRef.current) {
+        clearTimeout(pendingPointAnnounceTimerRef.current);
+        pendingPointAnnounceTimerRef.current = null;
+      }
+
+      if (score.lastEvent === 'point') {
+        pendingPointAnnounceTimerRef.current = setTimeout(() => {
+          pendingPointAnnounceTimerRef.current = null;
+          announceScore(score, playerNames);
+        }, POINT_ANNOUNCE_DELAY_MS);
+      } else {
+        announceScore(score, playerNames);
+      }
     }
 
     prevScoreRef.current = score;
   }, [score, playerNames]);
+
+  useEffect(() => () => {
+    if (pendingPointAnnounceTimerRef.current) {
+      clearTimeout(pendingPointAnnounceTimerRef.current);
+      pendingPointAnnounceTimerRef.current = null;
+    }
+  }, []);
 
   const handleNewMatch = useCallback(() => {
     reset();
@@ -199,7 +221,7 @@ export default function App() {
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>
-                Tap anywhere: 1× Team A · 2× Team B · hold 3s Undo · buttons still work
+                Tap anywhere: 1x Team A instantly · 2x Team B (fast or slow) · hold 3s Undo · buttons still work
               </Text>
             </View>
           </ScrollView>

@@ -46,6 +46,9 @@ function createInitialScore(config: MatchConfig): GameScore {
     lastSetWinner: null,
     prevGamesA: 0,
     prevGamesB: 0,
+    setResults: [],
+    matchStartedAt: Date.now(),
+    matchEndedAt: null,
   };
 }
 
@@ -256,9 +259,15 @@ function advanceTieBreak(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
 
 function winSet(score: GameScore, winner: 'A' | 'B'): GameScore {
   const next = { ...score };
+  const completedSet = {
+    teamAGames: score.gamesA,
+    teamBGames: score.gamesB,
+    winner,
+  };
   const setsKey = winner === 'A' ? 'setsA' : 'setsB';
   next[setsKey] = score[setsKey] + 1;
   next.lastSetWinner = winner;
+  next.setResults = [...score.setResults, completedSet];
   next.prevGamesA = score.gamesA;
   next.prevGamesB = score.gamesB;
   next.gamesA = 0;
@@ -273,6 +282,7 @@ function winSet(score: GameScore, winner: 'A' | 'B'): GameScore {
   if (next[setsKey] >= next.setsRequiredToWin) {
     next.matchOver = true;
     next.winner = winner;
+    next.matchEndedAt = Date.now();
     next.lastEvent = 'match_won';
   } else {
     next.lastEvent = 'set_won';

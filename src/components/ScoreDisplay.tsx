@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { GameScore, PlayerNames } from '../types/scoring';
+import { GameScore, PlayerNames, SetResult } from '../types/scoring';
 
 interface Props {
   score: GameScore;
@@ -12,6 +12,10 @@ export function ScoreDisplay({ score, names, variant = 'default' }: Props) {
   const isCourt = variant === 'court';
   const teamALabel = `${names.teamA[0]} / ${names.teamA[1]}`;
   const teamBLabel = `${names.teamB[0]} / ${names.teamB[1]}`;
+
+  if (isCourt) {
+    return <CourtModeScoreDisplay score={score} names={names} teamALabel={teamALabel} teamBLabel={teamBLabel} />;
+  }
 
   if (score.matchOver) {
     const winnerLabel = score.winner === 'A' ? teamALabel : teamBLabel;
@@ -39,6 +43,151 @@ export function ScoreDisplay({ score, names, variant = 'default' }: Props) {
         </View>
       )}
       <ServingIndicator score={score} names={names} isCourt={isCourt} />
+    </View>
+  );
+}
+
+function CourtModeScoreDisplay({
+  score,
+  names,
+  teamALabel,
+  teamBLabel,
+}: {
+  score: GameScore;
+  names: PlayerNames;
+  teamALabel: string;
+  teamBLabel: string;
+}) {
+  const pointA = score.isTieBreak ? String(score.tieBreakPointsA) : (score.teamA === 'Ad' ? 'AD' : score.teamA);
+  const pointB = score.isTieBreak ? String(score.tieBreakPointsB) : (score.teamB === 'Ad' ? 'AD' : score.teamB);
+  const winnerLabel = score.winner === 'A' ? teamALabel : teamBLabel;
+
+  return (
+    <View style={styles.courtRoot}>
+      <View style={styles.courtTopRow}>
+        <View style={styles.courtTeamHeader}>
+          <Text style={styles.courtGamesValue}>{score.gamesA}</Text>
+          <Text style={styles.courtSetsText}>SETS {score.setsA}</Text>
+          <Text style={[styles.courtTeamName, score.server === 'A' && styles.courtTeamNameServing]} numberOfLines={1}>
+            {teamALabel}
+          </Text>
+        </View>
+        <View style={styles.courtMiddleTag}>
+          <Text style={styles.courtMiddleTagText}>GAMES</Text>
+        </View>
+        <View style={styles.courtTeamHeader}>
+          <Text style={styles.courtGamesValue}>{score.gamesB}</Text>
+          <Text style={styles.courtSetsText}>SETS {score.setsB}</Text>
+          <Text style={[styles.courtTeamName, score.server === 'B' && styles.courtTeamNameServing]} numberOfLines={1}>
+            {teamBLabel}
+          </Text>
+        </View>
+      </View>
+
+      {score.matchOver ? (
+        <CourtMatchSummary
+          teamALabel={teamALabel}
+          teamBLabel={teamBLabel}
+          winnerLabel={winnerLabel}
+          setResults={score.setResults}
+        />
+      ) : (
+        <View style={styles.courtMainScore}>
+          <Text style={styles.courtPointValue}>{pointA}</Text>
+          <Text style={styles.courtPointSeparator}>:</Text>
+          <Text style={styles.courtPointValue}>{pointB}</Text>
+        </View>
+      )}
+
+      <View style={styles.courtInfoRow}>
+        {!score.matchOver && score.isTieBreak ? (
+          <View style={styles.courtBadge}>
+            <Text style={styles.courtBadgeText}>TIE-BREAK</Text>
+            <Text style={styles.courtBadgeSubText}>First to 7, win by 2</Text>
+          </View>
+        ) : score.isDeuce ? (
+          <View style={[styles.courtBadge, styles.courtBadgeDanger]}>
+            <Text style={styles.courtBadgeText}>DEUCE</Text>
+          </View>
+        ) : null}
+
+        {!score.matchOver && (
+          <View style={styles.courtServeRow}>
+            <Text style={styles.courtServeBall}>🎾</Text>
+            <Text style={styles.courtServeText}>
+              {(score.server === 'A' ? names.teamA[score.serverPlayerA] : names.teamB[score.serverPlayerB])} serves
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function CourtMatchSummary({
+  teamALabel,
+  teamBLabel,
+  winnerLabel,
+  setResults,
+}: {
+  teamALabel: string;
+  teamBLabel: string;
+  winnerLabel: string;
+  setResults: SetResult[];
+}) {
+  return (
+    <View style={styles.courtSummaryCard}>
+      <Text style={styles.courtSummaryTitle}>MATCH OVER</Text>
+      <Text style={styles.courtSummaryWinner}>{winnerLabel} WINS</Text>
+
+      <View style={styles.courtSummaryTable}>
+        <View style={styles.courtSummaryHeaderRow}>
+          <View style={styles.courtSummaryNameCell} />
+          {setResults.map((_, index) => (
+            <View key={`head-${index}`} style={styles.courtSummarySetCell}>
+              <Text style={styles.courtSummaryHeadText}>S{index + 1}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.courtSummaryDataRow}>
+          <View style={styles.courtSummaryNameCell}>
+            <Text style={styles.courtSummaryTeamName} numberOfLines={1}>{teamALabel}</Text>
+          </View>
+          {setResults.map((set, index) => (
+            <View
+              key={`a-${index}`}
+              style={[
+                styles.courtSummarySetCell,
+                set.winner === 'A' && styles.courtSummaryWinnerCell,
+              ]}
+            >
+              <Text style={[styles.courtSummarySetScore, set.winner === 'A' && styles.courtSummaryWinnerCellText]}>
+                {set.teamAGames}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.courtSummaryDataRow}>
+          <View style={styles.courtSummaryNameCell}>
+            <Text style={styles.courtSummaryTeamName} numberOfLines={1}>{teamBLabel}</Text>
+          </View>
+          {setResults.map((set, index) => (
+            <View
+              key={`b-${index}`}
+              style={[
+                styles.courtSummarySetCell,
+                set.winner === 'B' && styles.courtSummaryWinnerCell,
+              ]}
+            >
+              <Text style={[styles.courtSummarySetScore, set.winner === 'B' && styles.courtSummaryWinnerCellText]}>
+                {set.teamBGames}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
     </View>
   );
 }
@@ -362,5 +511,208 @@ const styles = StyleSheet.create({
   },
   winnerSubtextCourt: {
     fontSize: 52,
+  },
+  courtRoot: {
+    width: '100%',
+    flex: 1,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  courtTopRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  courtTeamHeader: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  courtTeamName: {
+    color: '#80a9d3',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  courtTeamNameServing: {
+    color: '#ffffff',
+  },
+  courtGamesValue: {
+    color: '#c7dcf3',
+    fontSize: 78,
+    fontWeight: '900',
+    lineHeight: 84,
+  },
+  courtSetsText: {
+    color: '#56779a',
+    fontSize: 13,
+    letterSpacing: 1.6,
+    fontWeight: '700',
+    marginTop: -2,
+  },
+  courtMiddleTag: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+    marginBottom: 16,
+  },
+  courtMiddleTagText: {
+    color: '#37597a',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 2.2,
+  },
+  courtMainScore: {
+    width: '100%',
+    minHeight: 190,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#1a3552',
+    backgroundColor: '#081527',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 6,
+    paddingHorizontal: 18,
+  },
+  courtPointValue: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#ffffff',
+    fontSize: 150,
+    fontWeight: '900',
+    lineHeight: 158,
+  },
+  courtPointSeparator: {
+    color: '#3d90ef',
+    fontSize: 104,
+    fontWeight: '900',
+    marginTop: -10,
+    marginHorizontal: 4,
+  },
+  courtInfoRow: {
+    marginTop: 8,
+    width: '100%',
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 6,
+  },
+  courtSummaryCard: {
+    width: '100%',
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#24486b',
+    backgroundColor: '#081527',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginVertical: 4,
+    alignItems: 'center',
+  },
+  courtSummaryTitle: {
+    color: '#ff5f7d',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  courtSummaryWinner: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '800',
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  courtSummaryTable: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#2a4563',
+    backgroundColor: '#0b1d32',
+  },
+  courtSummaryHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#12253f',
+  },
+  courtSummaryDataRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#233b57',
+  },
+  courtSummaryNameCell: {
+    flex: 1.8,
+    minHeight: 42,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  courtSummarySetCell: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: '#233b57',
+  },
+  courtSummaryHeadText: {
+    color: '#89a9ce',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  courtSummaryTeamName: {
+    color: '#d4e5fa',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  courtSummarySetScore: {
+    color: '#eaf3ff',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  courtSummaryWinnerCell: {
+    backgroundColor: '#2c55ff',
+  },
+  courtSummaryWinnerCellText: {
+    color: '#ffffff',
+  },
+  courtBadge: {
+    backgroundColor: '#0050d4',
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  courtBadgeDanger: {
+    backgroundColor: '#c41e3a',
+  },
+  courtBadgeText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  courtBadgeSubText: {
+    color: '#dbe8ff',
+    fontSize: 13,
+    marginTop: 2,
+    fontWeight: '700',
+  },
+  courtServeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  courtServeBall: {
+    fontSize: 22,
+  },
+  courtServeText: {
+    color: '#4a9eff',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
 });

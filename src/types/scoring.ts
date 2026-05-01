@@ -17,6 +17,12 @@ export interface PlayerNames {
   teamB: [string, string];
 }
 
+export interface SetResult {
+  teamAGames: number;
+  teamBGames: number;
+  winner: 'A' | 'B';
+}
+
 export type ScoreEvent =
   | 'point'
   | 'game_won'
@@ -55,6 +61,9 @@ export interface GameScore {
   lastSetWinner: 'A' | 'B' | null;
   prevGamesA: number;
   prevGamesB: number;
+  setResults: SetResult[];
+  matchStartedAt: number | null;
+  matchEndedAt: number | null;
 }
 
 export type ScoringAction =

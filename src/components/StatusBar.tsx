@@ -12,6 +12,7 @@ export function ConnectionStatus({ score, bleConnected, names }: Props) {
   const serverNames = score.server === 'A'
     ? `${names.teamA[0]} & ${names.teamA[1]}`
     : `${names.teamB[0]} & ${names.teamB[1]}`;
+  const matchFormatLabel = score.setsRequiredToWin === 3 ? 'Best of 5' : 'Best of 3';
 
   return (
     <View style={styles.container}>
@@ -30,6 +31,10 @@ export function ConnectionStatus({ score, bleConnected, names }: Props) {
           <Text style={styles.serverText}>
             🎾 {serverNames}
           </Text>
+        </View>
+
+        <View style={styles.formatBadge}>
+          <Text style={styles.formatText}>{matchFormatLabel}</Text>
         </View>
       </View>
     </View>
@@ -83,5 +88,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  formatBadge: {
+    backgroundColor: '#0f2038',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2a5588',
+  },
+  formatText: {
+    color: '#a8c8e8',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
 });

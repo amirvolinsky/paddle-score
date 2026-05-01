@@ -38,6 +38,7 @@ export function ScoreDisplay({ score, names }: Props) {
       <SetScoreRow score={score} teamALabel={teamALabel} teamBLabel={teamBLabel} />
       <GameScoreRow score={score} />
       <PointScoreRow score={score} />
+      {score.isTieBreak && <TieBreakScoreRow score={score} />}
       {score.isDeuce && (
         <View style={styles.deuceBadge}>
           <Text style={styles.deuceText}>DEUCE</Text>
@@ -87,6 +88,22 @@ function GameScoreRow({ score }: { score: GameScore }) {
 }
 
 function PointScoreRow({ score }: { score: GameScore }) {
+  if (score.isTieBreak) {
+    return (
+      <View style={styles.pointRow}>
+        <View style={styles.pointColumn}>
+          <Text style={styles.pointText}>{score.tieBreakPointsA}</Text>
+        </View>
+        <View style={styles.pointSeparator}>
+          <Text style={styles.pointDash}>:</Text>
+        </View>
+        <View style={styles.pointColumn}>
+          <Text style={styles.pointText}>{score.tieBreakPointsB}</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.pointRow}>
       <View style={styles.pointColumn}>
@@ -98,6 +115,15 @@ function PointScoreRow({ score }: { score: GameScore }) {
       <View style={styles.pointColumn}>
         {renderPoint(score.teamB, score.teamB === 'Ad')}
       </View>
+    </View>
+  );
+}
+
+function TieBreakScoreRow({ score }: { score: GameScore }) {
+  return (
+    <View style={styles.tieBreakBadge}>
+      <Text style={styles.tieBreakText}>TIE-BREAK</Text>
+      <Text style={styles.tieBreakSubText}>First to 7, win by 2</Text>
     </View>
   );
 }
@@ -202,6 +228,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 8,
     borderRadius: 20,
+  },
+  tieBreakBadge: {
+    marginTop: 12,
+    backgroundColor: '#0050d4',
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  tieBreakText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  tieBreakSubText: {
+    color: '#d8e7ff',
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '600',
   },
   deuceText: {
     color: '#fff',

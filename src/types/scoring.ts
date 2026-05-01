@@ -2,10 +2,12 @@ export type PadelPoint = '0' | '15' | '30' | '40' | 'Ad';
 
 /** Standard advantage deuce (Ad), or next point wins at 40–40 (golden point). */
 export type DeuceMode = 'advantage' | 'golden_point';
+export type MatchFormat = 'best_of_3' | 'best_of_5';
 
 export interface MatchConfig {
   firstServer: 'A' | 'B';
   deuceMode: DeuceMode;
+  matchFormat: MatchFormat;
 }
 
 export interface PlayerNames {
@@ -27,6 +29,12 @@ export interface GameScore {
   gamesB: number;
   setsA: number;
   setsB: number;
+  tieBreakPointsA: number;
+  tieBreakPointsB: number;
+  isTieBreak: boolean;
+  setsRequiredToWin: number;
+  isMatchPoint: boolean;
+  matchPointTeam: 'A' | 'B' | null;
   isDeuce: boolean;
   /** Locked for the match from {@link MatchConfig}. */
   deuceMode: DeuceMode;

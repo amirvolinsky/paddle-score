@@ -10,7 +10,7 @@ import {
   ScrollView,
   type ViewStyle,
 } from 'react-native';
-import { PlayerNames, MatchConfig, DeuceMode } from '../types/scoring';
+import { PlayerNames, MatchConfig, DeuceMode, MatchFormat } from '../types/scoring';
 import { BrandHeader } from './BrandHeader';
 
 interface Props {
@@ -24,6 +24,7 @@ export function NameEntry({ onStart }: Props) {
   const [b2, setB2] = useState('');
   const [firstServer, setFirstServer] = useState<'A' | 'B'>('A');
   const [deuceMode, setDeuceMode] = useState<DeuceMode>('advantage');
+  const [matchFormat, setMatchFormat] = useState<MatchFormat>('best_of_3');
 
   const canStart = Boolean(a1.trim() && a2.trim() && b1.trim() && b2.trim());
 
@@ -37,6 +38,7 @@ export function NameEntry({ onStart }: Props) {
       {
         firstServer,
         deuceMode,
+        matchFormat,
       }
     );
   };
@@ -102,6 +104,30 @@ export function NameEntry({ onStart }: Props) {
               Golden point
             </Text>
             <Text style={styles.toggleHint}>40–40: next point wins</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.sectionLabel}>MATCH FORMAT</Text>
+        <View style={styles.toggleRow}>
+          <TouchableOpacity
+            style={[styles.toggleBtn, matchFormat === 'best_of_3' && styles.toggleBtnActive]}
+            onPress={() => setMatchFormat('best_of_3')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.toggleBtnText, matchFormat === 'best_of_3' && styles.toggleBtnTextActive]}>
+              Best of 3
+            </Text>
+            <Text style={styles.toggleHint}>First to 2 sets</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, matchFormat === 'best_of_5' && styles.toggleBtnActive]}
+            onPress={() => setMatchFormat('best_of_5')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.toggleBtnText, matchFormat === 'best_of_5' && styles.toggleBtnTextActive]}>
+              Best of 5
+            </Text>
+            <Text style={styles.toggleHint}>First to 3 sets</Text>
           </TouchableOpacity>
         </View>
       </View>

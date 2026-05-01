@@ -12,6 +12,7 @@ import type { AnnouncementStep, ClipId } from '../types/announcement';
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   firstServer: 'A',
   deuceMode: 'advantage',
+  matchFormat: 'best_of_3',
 };
 
 function createInitialScore(config: MatchConfig): GameScore {
@@ -22,6 +23,12 @@ function createInitialScore(config: MatchConfig): GameScore {
     gamesB: 0,
     setsA: 0,
     setsB: 0,
+    tieBreakPointsA: 0,
+    tieBreakPointsB: 0,
+    isTieBreak: false,
+    setsRequiredToWin: config.matchFormat === 'best_of_5' ? 3 : 2,
+    isMatchPoint: false,
+    matchPointTeam: null,
     isDeuce: false,
     deuceMode: config.deuceMode,
     server: config.firstServer,
@@ -53,7 +60,11 @@ function nextPoint(current: PadelPoint): PadelPoint {
 }
 
 function advanceGame(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
-  const next = { ...score, lastEvent: 'point' as const, lastGameWinner: null, lastSetWinner: null };
+  if (score.isTieBreak) {
+    return advanceTieBreak(score, scoringTeam);
+  }
+
+  const next: GameScore = { ...score, lastEvent: 'point' as const, lastGameWinner: null, lastSetWinner: null };
   const scorerKey = `team${scoringTeam}` as 'teamA' | 'teamB';
   const otherTeam = scoringTeam === 'A' ? 'B' : 'A';
   const otherKey = `team${otherTeam}` as 'teamA' | 'teamB';
@@ -67,7 +78,7 @@ function advanceGame(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
     }
     next[scorerKey] = 'Ad';
     next.isDeuce = true;
-    return next;
+    return updateMatchPointState(next);
   }
 
   if (scorerPoints === 'Ad') {
@@ -78,7 +89,7 @@ function advanceGame(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
     next.teamA = '40';
     next.teamB = '40';
     next.isDeuce = true;
-    return next;
+    return updateMatchPointState(next);
   }
 
   if (scorerPoints === '40') {
@@ -89,7 +100,7 @@ function advanceGame(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
   if (next[scorerKey] === '40' && otherPoints === '40') {
     next.isDeuce = true;
   }
-  return next;
+  return updateMatchPointState(next);
 }
 
 function winGame(score: GameScore, winner: 'A' | 'B'): GameScore {
@@ -111,15 +122,50 @@ function winGame(score: GameScore, winner: 'A' | 'B'): GameScore {
   const winnerGames = next[gamesKey];
   const otherGames = next[otherGamesKey];
 
-  if (
-    (winnerGames >= 6 && winnerGames - otherGames >= 2) ||
-    (winnerGames === 7 && otherGames <= 6)
-  ) {
+  if (winnerGames >= 6 && winnerGames - otherGames >= 2) {
     return winSet(next, winner);
   }
 
+  if (winnerGames === 6 && otherGames === 6) {
+    next.isTieBreak = true;
+    next.tieBreakPointsA = 0;
+    next.tieBreakPointsB = 0;
+    next.lastEvent = 'point';
+    return updateMatchPointState(next);
+  }
+
   next.lastEvent = 'game_won';
-  return next;
+  return updateMatchPointState(next);
+}
+
+function advanceTieBreak(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
+  const next: GameScore = { ...score, lastEvent: 'point' as const, lastGameWinner: null, lastSetWinner: null };
+  if (scoringTeam === 'A') {
+    next.tieBreakPointsA += 1;
+  } else {
+    next.tieBreakPointsB += 1;
+  }
+
+  const winnerPoints = scoringTeam === 'A' ? next.tieBreakPointsA : next.tieBreakPointsB;
+  const loserPoints = scoringTeam === 'A' ? next.tieBreakPointsB : next.tieBreakPointsA;
+  if (winnerPoints >= 7 && winnerPoints - loserPoints >= 2) {
+    next.isTieBreak = false;
+    next.tieBreakPointsA = 0;
+    next.tieBreakPointsB = 0;
+    next.prevGamesA = score.gamesA;
+    next.prevGamesB = score.gamesB;
+    if (scoringTeam === 'A') {
+      next.gamesA = 7;
+      next.gamesB = 6;
+    } else {
+      next.gamesA = 6;
+      next.gamesB = 7;
+    }
+    next.lastGameWinner = scoringTeam;
+    return winSet(next, scoringTeam);
+  }
+
+  return updateMatchPointState(next);
 }
 
 function winSet(score: GameScore, winner: 'A' | 'B'): GameScore {
@@ -131,8 +177,13 @@ function winSet(score: GameScore, winner: 'A' | 'B'): GameScore {
   next.prevGamesB = score.gamesB;
   next.gamesA = 0;
   next.gamesB = 0;
+  next.tieBreakPointsA = 0;
+  next.tieBreakPointsB = 0;
+  next.isTieBreak = false;
+  next.isMatchPoint = false;
+  next.matchPointTeam = null;
 
-  if (next[setsKey] >= 2) {
+  if (next[setsKey] >= next.setsRequiredToWin) {
     next.matchOver = true;
     next.winner = winner;
     next.lastEvent = 'match_won';
@@ -141,6 +192,54 @@ function winSet(score: GameScore, winner: 'A' | 'B'): GameScore {
   }
 
   return next;
+}
+
+function updateMatchPointState(score: GameScore): GameScore {
+  if (score.matchOver) {
+    return { ...score, isMatchPoint: false, matchPointTeam: null };
+  }
+
+  const oneSetFromMatchA = score.setsA === score.setsRequiredToWin - 1;
+  const oneSetFromMatchB = score.setsB === score.setsRequiredToWin - 1;
+  if (!oneSetFromMatchA && !oneSetFromMatchB) {
+    return { ...score, isMatchPoint: false, matchPointTeam: null };
+  }
+
+  const isTeamAOnePointAway = isOnePointAwayFromWinningSet(score, 'A');
+  const isTeamBOnePointAway = isOnePointAwayFromWinningSet(score, 'B');
+  if (isTeamAOnePointAway && !isTeamBOnePointAway) {
+    return { ...score, isMatchPoint: true, matchPointTeam: 'A' };
+  }
+  if (isTeamBOnePointAway && !isTeamAOnePointAway) {
+    return { ...score, isMatchPoint: true, matchPointTeam: 'B' };
+  }
+
+  return { ...score, isMatchPoint: false, matchPointTeam: null };
+}
+
+function isOnePointAwayFromWinningSet(score: GameScore, team: 'A' | 'B'): boolean {
+  if (score.isTieBreak) {
+    const own = team === 'A' ? score.tieBreakPointsA : score.tieBreakPointsB;
+    const opp = team === 'A' ? score.tieBreakPointsB : score.tieBreakPointsA;
+    return own >= 6 && own - opp >= 1;
+  }
+
+  const ownGames = team === 'A' ? score.gamesA : score.gamesB;
+  const oppGames = team === 'A' ? score.gamesB : score.gamesA;
+
+  if (ownGames === 6 && oppGames === 5) return true;
+
+  if (ownGames === 5 && oppGames <= 4) {
+    const ownPoints = team === 'A' ? score.teamA : score.teamB;
+    const oppPoints = team === 'A' ? score.teamB : score.teamA;
+    if (score.deuceMode === 'golden_point') {
+      return ownPoints === '40' && oppPoints === '40';
+    }
+    if (ownPoints === 'Ad') return true;
+    return ownPoints === '40' && !['40', 'Ad'].includes(oppPoints);
+  }
+
+  return false;
 }
 
 function scoringReducer(state: ScoringState, action: ScoringAction): ScoringState {
@@ -234,6 +333,10 @@ function hebPoint(p: PadelPoint): string {
 
 /** In-rally score line for TTS — server’s points then receiver’s, never player names. */
 export function buildPointRallySpeechText(score: GameScore, names?: PlayerNames): string {
+  if (score.isTieBreak) {
+    return `${hebNum(score.tieBreakPointsA)} ${hebNum(score.tieBreakPointsB)}.`;
+  }
+
   const serverIsA = score.server === 'A';
   const serverPoints = serverIsA ? score.teamA : score.teamB;
   const receiverPoints = serverIsA ? score.teamB : score.teamA;
@@ -288,12 +391,13 @@ export function buildSpeechText(score: GameScore, names: PlayerNames): string {
   if (score.lastEvent === 'match_won') {
     const winnerSets = score.winner === 'A' ? score.setsA : score.setsB;
     const loserSets = score.winner === 'A' ? score.setsB : score.setsA;
-    return `גיים סט ומאצ׳. ${hebNum(winnerSets)}, ${hebNum(loserSets)}.`;
+    const winnerTeam = score.winner === 'A' ? teamName(names, 'A') : teamName(names, 'B');
+    return `${hebNum(winnerSets)} ${hebNum(loserSets)} - ניצחון - ${winnerTeam}`;
   }
 
   if (score.lastEvent === 'set_won') {
-    const wGames = score.lastSetWinner === 'A' ? score.prevGamesA + 1 : score.prevGamesA;
-    const lGames = score.lastSetWinner === 'A' ? score.prevGamesB : score.prevGamesB + 1;
+    const wGames = score.lastSetWinner === 'A' ? score.prevGamesA : score.prevGamesB;
+    const lGames = score.lastSetWinner === 'A' ? score.prevGamesB : score.prevGamesA;
     return `גיים וסט. ${hebNum(wGames)}, ${hebNum(lGames)}. סטים: ${hebNum(serverSets)}, ${hebNum(receiverSets)}. סרבים של.`;
   }
 
@@ -306,6 +410,12 @@ export function buildSpeechText(score: GameScore, names: PlayerNames): string {
   }
 
   if (score.lastEvent === 'point') {
+    if (score.isTieBreak && score.tieBreakPointsA === 0 && score.tieBreakPointsB === 0) {
+      return `Tie Break! ${buildPointRallySpeechText(score, names)}`;
+    }
+    if (score.isMatchPoint) {
+      return `Matchpoint! ${buildPointRallySpeechText(score, names)}`;
+    }
     return buildPointRallySpeechText(score, names);
   }
 
@@ -334,8 +444,8 @@ export function buildSpeechTextAfterCrowdCheer(score: GameScore, names: PlayerNa
   }
 
   if (score.lastEvent === 'set_won') {
-    const wGames = score.lastSetWinner === 'A' ? score.prevGamesA + 1 : score.prevGamesA;
-    const lGames = score.lastSetWinner === 'A' ? score.prevGamesB : score.prevGamesB + 1;
+    const wGames = score.lastSetWinner === 'A' ? score.prevGamesA : score.prevGamesB;
+    const lGames = score.lastSetWinner === 'A' ? score.prevGamesB : score.prevGamesA;
     return `${hebNum(wGames)}, ${hebNum(lGames)}. סטים: ${hebNum(serverSets)}, ${hebNum(receiverSets)}. סרבים של.`;
   }
 
@@ -462,8 +572,8 @@ export function buildAnnouncementSteps(score: GameScore, names: PlayerNames): An
   }
 
   if (score.lastEvent === 'set_won') {
-    const winnerGames = score.lastSetWinner === 'A' ? score.prevGamesA + 1 : score.prevGamesA;
-    const loserGames = score.lastSetWinner === 'A' ? score.prevGamesB : score.prevGamesB + 1;
+    const winnerGames = score.lastSetWinner === 'A' ? score.prevGamesA : score.prevGamesB;
+    const loserGames = score.lastSetWinner === 'A' ? score.prevGamesB : score.prevGamesA;
 
     steps.push({ type: 'clip', id: 'giim' }, { type: 'clip', id: 'set' });
     steps.push({ type: 'clip', id: gameCountToClip(winnerGames) });

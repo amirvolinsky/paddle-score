@@ -22,6 +22,10 @@ function getCheerSource(): number {
   return require('../../assets/audio/crowd_cheer.mp3');
 }
 
+function getSetWinVoiceSource(): number {
+  return require('../../assets/audio/set_win_stadium_stomp.mp3');
+}
+
 function resolveCheerPlayback(): void {
   if (cheerSafetyTimer) {
     clearTimeout(cheerSafetyTimer);
@@ -70,6 +74,41 @@ export function playCrowdCheer(): Promise<void> {
         });
       } catch (e) {
         console.warn('Crowd cheer playback failed', e);
+        resolveCheerPlayback();
+      }
+    })();
+  });
+}
+
+/**
+ * Placeholder for custom set-win audio. Currently plays the provided stadium stomp clip.
+ */
+export function playSetWinVoice(): Promise<void> {
+  stopCrowdCheer();
+
+  return new Promise<void>((resolve) => {
+    cheerFinishResolver = resolve;
+
+    cheerSafetyTimer = setTimeout(() => {
+      cheerSafetyTimer = null;
+      resolveCheerPlayback();
+    }, CHEER_MAX_MS);
+
+    void (async () => {
+      try {
+        await ensurePlaybackAudio();
+        const { sound } = await Audio.Sound.createAsync(getSetWinVoiceSource(), {
+          shouldPlay: true,
+          volume: 0.9,
+        });
+        nativeSound = sound;
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            finishCheerPlayback(sound);
+          }
+        });
+      } catch (e) {
+        console.warn('Set win voice playback failed', e);
         resolveCheerPlayback();
       }
     })();

@@ -6,7 +6,7 @@ import {
   speakElevenLabsText,
   stopElevenLabsPlayback,
 } from './elevenLabsService';
-import { playCrowdCheer, stopCrowdCheer } from './crowdCheerService';
+import { playCrowdCheer, playSetWinVoice, stopCrowdCheer } from './crowdCheerService';
 
 let isSpeaking = false;
 let announceGeneration = 0;
@@ -93,8 +93,12 @@ async function speakSystemTts(text: string, myGen: number): Promise<void> {
  * Future: reduce ElevenLabs usage by playing bundled/pre-generated clips for repeated number phrases,
  * reserving the API only for lines with player names. Until then, all announcements use ElevenLabs when configured.
  */
-/** Game/set/match end: crowd cheer first, then TTS totals only (see {@link buildSpeechTextAfterCrowdCheer}). */
-const CHEER_BEFORE_SPEECH_EVENTS = new Set(['game_won', 'set_won', 'match_won']);
+/** Only game wins keep the crowd cheer lead-in. */
+const GAME_CHEER_EVENT = 'game_won';
+/** Set wins play dedicated set-win voice before speech. */
+const SET_VOICE_EVENT = 'set_won';
+/** Match win should play stadium chant before speech. */
+const MATCH_WIN_EVENT = 'match_won';
 
 export async function announceScore(score: GameScore, names: PlayerNames): Promise<void> {
   const myGen = ++announceGeneration;
@@ -105,10 +109,20 @@ export async function announceScore(score: GameScore, names: PlayerNames): Promi
   isSpeaking = true;
 
   try {
-    const cheerFirst = CHEER_BEFORE_SPEECH_EVENTS.has(score.lastEvent);
+    const cheerFirst = score.lastEvent === GAME_CHEER_EVENT;
+    const setVoiceFirst = score.lastEvent === SET_VOICE_EVENT;
+    const matchWin = score.lastEvent === MATCH_WIN_EVENT;
 
     if (cheerFirst) {
       await playCrowdCheer();
+      if (myGen !== announceGeneration) return;
+    }
+    if (setVoiceFirst) {
+      await playSetWinVoice();
+      if (myGen !== announceGeneration) return;
+    }
+    if (matchWin) {
+      await playSetWinVoice();
       if (myGen !== announceGeneration) return;
     }
 
@@ -121,14 +135,15 @@ export async function announceScore(score: GameScore, names: PlayerNames): Promi
     if (isElevenLabsConfigured()) {
       try {
         await speakElevenLabsText(text, () => myGen === announceGeneration);
-        return;
       } catch (e) {
         console.warn('ElevenLabs failed, falling back to system TTS', e);
+        if (myGen !== announceGeneration) return;
+        await speakSystemTts(text, myGen);
       }
+    } else {
+      if (myGen !== announceGeneration) return;
+      await speakSystemTts(text, myGen);
     }
-
-    if (myGen !== announceGeneration) return;
-    await speakSystemTts(text, myGen);
   } finally {
     if (myGen === announceGeneration) {
       isSpeaking = false;

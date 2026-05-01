@@ -1,0 +1,20 @@
+[
+  { "id": "efes_efes", "text": "אפס אפס.", "slug": "efes_efes" },
+  { "id": "hamesh_esre_efes", "text": "חמש עשרה אפס.", "slug": "hamesh_esre_efes" },
+  { "id": "efes_hamesh_esre", "text": "אפס חמש עשרה.", "slug": "efes_hamesh_esre" },
+  { "id": "shloshim_efes", "text": "שלושים אפס.", "slug": "shloshim_efes" },
+  { "id": "efes_shloshim", "text": "אפס שלושים.", "slug": "efes_shloshim" },
+  { "id": "shloshim_hamesh_esre", "text": "שלושים חמש עשרה.", "slug": "shloshim_hamesh_esre" },
+  { "id": "hamesh_esre_shloshim", "text": "חמש עשרה שלושים.", "slug": "hamesh_esre_shloshim" },
+  { "id": "hamesh_esre_hamesh_esre", "text": "חמש עשרה חמש עשרה.", "slug": "hamesh_esre_hamesh_esre" },
+  { "id": "shloshim_shloshim", "text": "שלושים שלושים.", "slug": "shloshim_shloshim" },
+  { "id": "shivyon", "text": "שוויון.", "slug": "shivyon" },
+  { "id": "tiebreak_0_0", "text": "אפס אפס.", "slug": "tiebreak_0_0" },
+  { "id": "tiebreak_1_1", "text": "אחת אחת.", "slug": "tiebreak_1_1" },
+  { "id": "tiebreak_2_2", "text": "שתיים שתיים.", "slug": "tiebreak_2_2" },
+  { "id": "tiebreak_3_3", "text": "שלוש שלוש.", "slug": "tiebreak_3_3" },
+  { "id": "tiebreak_4_4", "text": "ארבע ארבע.", "slug": "tiebreak_4_4" },
+  { "id": "tiebreak_5_5", "text": "חמש חמש.", "slug": "tiebreak_5_5" },
+  { "id": "tiebreak_6_6", "text": "שש שש.", "slug": "tiebreak_6_6" },
+  { "id": "tiebreak_7_7", "text": "שבע שבע.", "slug": "tiebreak_7_7" }
+]

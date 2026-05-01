@@ -1,4 +1,6 @@
 import Constants from 'expo-constants';
+import { Asset } from 'expo-asset';
+import { getStaticHebrewScoreAssetModule } from './hebrewScoreStaticCache';
 
 const MODEL_ID = 'eleven_v3';
 
@@ -153,12 +155,108 @@ async function playNativeAudio(arrayBuffer: ArrayBuffer, shouldContinue?: () => 
   });
 }
 
+async function playNativeModuleAudio(moduleId: number, shouldContinue?: () => boolean): Promise<void> {
+  const { Audio: ExpoAudio } = await import('expo-av');
+
+  await ExpoAudio.setAudioModeAsync({
+    playsInSilentModeIOS: true,
+    staysActiveInBackground: true,
+    shouldDuckAndroid: true,
+    playThroughEarpieceAndroid: false,
+  });
+
+  if (shouldContinue && !shouldContinue()) return;
+  const { sound } = await ExpoAudio.Sound.createAsync(moduleId, { shouldPlay: false });
+  currentNativeSound = sound;
+
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(safety);
+      if (currentNativeSound === sound) currentNativeSound = null;
+      sound.setOnPlaybackStatusUpdate(null);
+      sound.unloadAsync().catch(() => {});
+      resolve();
+    };
+
+    const safety = setTimeout(finish, 60_000);
+
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (shouldContinue && !shouldContinue()) {
+        sound.stopAsync().catch(() => finish());
+        return;
+      }
+      if (status.isLoaded && status.didJustFinish) {
+        finish();
+      }
+    });
+
+    sound.playAsync().catch(() => finish());
+  });
+}
+
+async function playStaticHebrewScoreAudio(
+  text: string,
+  shouldContinue?: () => boolean
+): Promise<boolean> {
+  const moduleId = getStaticHebrewScoreAssetModule(text);
+  if (moduleId === null) return false;
+
+  stopElevenLabsPlayback();
+
+  if (shouldContinue && !shouldContinue()) return true;
+
+  if (isWeb) {
+    const asset = Asset.fromModule(moduleId);
+    await asset.downloadAsync();
+    const uri = asset.localUri || asset.uri;
+    if (!uri) return false;
+
+    const audio = new Audio(uri);
+    currentWebAudio = audio;
+
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(safety);
+        if (currentWebAudio === audio) currentWebAudio = null;
+        audio.pause();
+        resolve();
+      };
+
+      const safety = setTimeout(finish, 60_000);
+
+      audio.addEventListener('ended', finish);
+      audio.addEventListener('error', finish);
+
+      if (shouldContinue && !shouldContinue()) {
+        finish();
+        return;
+      }
+
+      audio.play().catch(() => finish());
+    });
+  } else {
+    await playNativeModuleAudio(moduleId, shouldContinue);
+  }
+
+  return true;
+}
+
 export async function speakElevenLabsText(
   text: string,
   shouldContinue?: () => boolean
 ): Promise<void> {
   const trimmed = text.trim();
   if (!trimmed) return;
+
+  if (await playStaticHebrewScoreAudio(trimmed, shouldContinue)) {
+    return;
+  }
 
   const { apiKey, voiceId } = getElevenLabsCredentials();
   if (!apiKey || !voiceId) return;

@@ -28,6 +28,27 @@ npx eas login
 eas build --platform ios --profile development
 ```
 
+## Static Hebrew Score Audio Cache
+
+Score-only Hebrew phrases can be pre-generated once and served locally, while name-containing lines still use live ElevenLabs.
+
+1. Copy `.env.example` to `.env` and set:
+   - `EXPO_PUBLIC_ELEVENLABS_API_KEY`
+   - `EXPO_PUBLIC_ELEVENLABS_VOICE_ID`
+2. Generate static files + manifest:
+
+```bash
+npm run audio:generate:hebrew-scores
+```
+
+This writes MP3 files to `assets/audio/static-hebrew-scores/` and updates `src/services/generated/hebrewScoreStaticAudioManifest.ts`.
+
+### Validation checklist
+
+- Score-only calls such as `אפס אפס.` and `שוויון.` play from local files (no ElevenLabs request).
+- Name phrases (for example `... ל<teamName>.`) still use ElevenLabs.
+- If ElevenLabs fails for non-cached lines, system TTS fallback still speaks.
+
 ## Project Structure
 
 ```

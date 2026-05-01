@@ -95,8 +95,8 @@ async function speakSystemTts(text: string, myGen: number): Promise<void> {
 }
 
 /**
- * Future: reduce ElevenLabs usage by playing bundled/pre-generated clips for repeated number phrases,
- * reserving the API only for lines with player names. Until then, all announcements use ElevenLabs when configured.
+ * Score-only Hebrew phrases can be served by the static cache inside elevenLabsService.
+ * Name-containing lines still flow through live ElevenLabs generation when configured.
  */
 /** Only game wins keep the crowd cheer lead-in. */
 const GAME_CHEER_EVENT = 'game_won';

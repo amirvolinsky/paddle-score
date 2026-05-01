@@ -46,6 +46,11 @@ export interface GameScore {
   isDeuce: boolean;
   /** Locked for the match from {@link MatchConfig}. */
   deuceMode: DeuceMode;
+  /**
+   * Once true for the current game: 40/x or x/40 announcements no longer append the leading team’s name
+   * (first time someone reaches 40 before deuce still includes names). Resets each new game.
+   */
+  highScoreLeaderNamesSpokenThisGame: boolean;
   server: 'A' | 'B';
   /** Current server within each team: 0 => first listed player, 1 => second listed player. */
   serverPlayerA: 0 | 1;

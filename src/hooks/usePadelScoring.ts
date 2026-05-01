@@ -49,6 +49,7 @@ function createInitialScore(config: MatchConfig): GameScore {
     setResults: [],
     matchStartedAt: Date.now(),
     matchEndedAt: null,
+    highScoreLeaderNamesSpokenThisGame: false,
   };
 }
 
@@ -105,7 +106,15 @@ function advanceGame(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
     return advanceTieBreak(score, scoringTeam);
   }
 
+  const prevHighScoreNonDeuce =
+    score.teamA === '40' || score.teamB === '40'
+      ? !(score.teamA === '40' && score.teamB === '40')
+      : false;
+
   const next: GameScore = { ...score, lastEvent: 'point' as const, lastGameWinner: null, lastSetWinner: null };
+  if (prevHighScoreNonDeuce) {
+    next.highScoreLeaderNamesSpokenThisGame = true;
+  }
   const scorerKey = `team${scoringTeam}` as 'teamA' | 'teamB';
   const otherTeam = scoringTeam === 'A' ? 'B' : 'A';
   const otherKey = `team${otherTeam}` as 'teamA' | 'teamB';
@@ -149,6 +158,7 @@ function winGame(score: GameScore, winner: 'A' | 'B'): GameScore {
   next.teamA = '0';
   next.teamB = '0';
   next.isDeuce = false;
+  next.highScoreLeaderNamesSpokenThisGame = false;
 
   // The serving team rotates player each time it serves a game.
   if (score.server === 'A') {
@@ -182,6 +192,7 @@ function winGame(score: GameScore, winner: 'A' | 'B'): GameScore {
     next.tieBreakFirstServer = next.server;
     next.tieBreakStartServerPlayerA = next.serverPlayerA;
     next.tieBreakStartServerPlayerB = next.serverPlayerB;
+    next.highScoreLeaderNamesSpokenThisGame = false;
     next.lastEvent = 'point';
     return updateMatchPointState(next);
   }
@@ -278,6 +289,7 @@ function winSet(score: GameScore, winner: 'A' | 'B'): GameScore {
   next.tieBreakFirstServer = null;
   next.isMatchPoint = false;
   next.matchPointTeam = null;
+  next.highScoreLeaderNamesSpokenThisGame = false;
 
   if (next[setsKey] >= next.setsRequiredToWin) {
     next.matchOver = true;
@@ -448,7 +460,10 @@ function hebPoint(p: PadelPoint): string {
   return hebNum(p);
 }
 
-/** In-rally score line for TTS — server’s points then receiver’s, never player names. */
+/**
+ * In-rally score line for TTS — server’s points then receiver’s.
+ * With names: first 40 (non-deuce) in a game may append the leading team; later 40 lines in that game omit names.
+ */
 export function buildPointRallySpeechText(score: GameScore, names?: PlayerNames): string {
   if (score.isTieBreak) {
     return `${hebNum(score.tieBreakPointsA)} ${hebNum(score.tieBreakPointsB)}.`;
@@ -482,7 +497,10 @@ export function buildPointRallySpeechText(score: GameScore, names?: PlayerNames)
 
   if (hasHighScore && names) {
     const leader = serverPoints === '40' ? serverTeam : receiverTeam;
-    return `${hebPoint(serverPoints)} ${hebPoint(receiverPoints)} ל${teamName(names, leader)}.`;
+    if (!score.highScoreLeaderNamesSpokenThisGame) {
+      return `${hebPoint(serverPoints)} ${hebPoint(receiverPoints)} ל${teamName(names, leader)}.`;
+    }
+    return `${hebPoint(serverPoints)} ${hebPoint(receiverPoints)}.`;
   }
 
   return `${hebPoint(serverPoints)} ${hebPoint(receiverPoints)}.`;
@@ -649,7 +667,7 @@ export function buildPointRallyAnnouncementSteps(score: GameScore, names?: Playe
     { type: 'clip', id: pointToClip(receiverPoints) },
   ];
 
-  if (hasHighScore && names) {
+  if (hasHighScore && names && !score.highScoreLeaderNamesSpokenThisGame) {
     const leader = serverPoints === '40' ? serverTeam : receiverTeam;
     steps.push({ type: 'tts', text: `ל${teamName(names, leader)}` });
   }

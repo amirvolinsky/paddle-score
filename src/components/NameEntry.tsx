@@ -15,14 +15,18 @@ import { BrandHeader } from './BrandHeader';
 
 interface Props {
   onStart: (names: PlayerNames, config: MatchConfig) => void;
+  onStartTestTieBreak?: (names: PlayerNames, config: MatchConfig) => void;
+  onStartTestPreGameWin?: (names: PlayerNames, config: MatchConfig) => void;
 }
 
-export function NameEntry({ onStart }: Props) {
+export function NameEntry({ onStart, onStartTestTieBreak, onStartTestPreGameWin }: Props) {
   const [a1, setA1] = useState('');
   const [a2, setA2] = useState('');
   const [b1, setB1] = useState('');
   const [b2, setB2] = useState('');
   const [firstServer, setFirstServer] = useState<'A' | 'B'>('A');
+  const [firstServerPlayerA, setFirstServerPlayerA] = useState<0 | 1>(0);
+  const [firstServerPlayerB, setFirstServerPlayerB] = useState<0 | 1>(0);
   const [deuceMode, setDeuceMode] = useState<DeuceMode>('advantage');
   const [matchFormat, setMatchFormat] = useState<MatchFormat>('best_of_3');
 
@@ -37,10 +41,42 @@ export function NameEntry({ onStart }: Props) {
       },
       {
         firstServer,
+        firstServerPlayerA,
+        firstServerPlayerB,
         deuceMode,
         matchFormat,
       }
     );
+  };
+
+  const handleStartTieBreakTest = () => {
+    if (!onStartTestTieBreak) return;
+    const names: PlayerNames = {
+      teamA: ['יובל', 'אלון'],
+      teamB: ['גל', 'זוהר'],
+    };
+    onStartTestTieBreak(names, {
+      firstServer,
+      firstServerPlayerA,
+      firstServerPlayerB,
+      deuceMode,
+      matchFormat,
+    });
+  };
+
+  const handleStartPreGameWinTest = () => {
+    if (!onStartTestPreGameWin) return;
+    const names: PlayerNames = {
+      teamA: ['יובל', 'אלון'],
+      teamB: ['גל', 'זוהר'],
+    };
+    onStartTestPreGameWin(names, {
+      firstServer,
+      firstServerPlayerA,
+      firstServerPlayerB,
+      deuceMode,
+      matchFormat,
+    });
   };
 
   const teamALabel = a1.trim() && a2.trim() ? `${a1.trim()} & ${a2.trim()}` : 'Team A';
@@ -155,6 +191,27 @@ export function NameEntry({ onStart }: Props) {
           autoCapitalize="words"
           returnKeyType="next"
         />
+        <Text style={styles.inlineLabel}>FIRST SERVER IN TEAM A</Text>
+        <View style={styles.inlineToggleRow}>
+          <TouchableOpacity
+            style={[styles.inlineToggleBtn, firstServerPlayerA === 0 && styles.inlineToggleBtnActive]}
+            onPress={() => setFirstServerPlayerA(0)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.inlineToggleText, firstServerPlayerA === 0 && styles.inlineToggleTextActive]}>
+              {a1.trim() || 'Player 1'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.inlineToggleBtn, firstServerPlayerA === 1 && styles.inlineToggleBtnActive]}
+            onPress={() => setFirstServerPlayerA(1)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.inlineToggleText, firstServerPlayerA === 1 && styles.inlineToggleTextActive]}>
+              {a2.trim() || 'Player 2'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.teamSection}>
@@ -181,6 +238,27 @@ export function NameEntry({ onStart }: Props) {
           returnKeyType="done"
           onSubmitEditing={handleStart}
         />
+        <Text style={styles.inlineLabel}>FIRST SERVER IN TEAM B</Text>
+        <View style={styles.inlineToggleRow}>
+          <TouchableOpacity
+            style={[styles.inlineToggleBtn, firstServerPlayerB === 0 && styles.inlineToggleBtnActive]}
+            onPress={() => setFirstServerPlayerB(0)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.inlineToggleText, firstServerPlayerB === 0 && styles.inlineToggleTextActive]}>
+              {b1.trim() || 'Player 1'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.inlineToggleBtn, firstServerPlayerB === 1 && styles.inlineToggleBtnActive]}
+            onPress={() => setFirstServerPlayerB(1)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.inlineToggleText, firstServerPlayerB === 1 && styles.inlineToggleTextActive]}>
+              {b2.trim() || 'Player 2'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <TouchableOpacity
@@ -190,6 +268,22 @@ export function NameEntry({ onStart }: Props) {
         activeOpacity={0.7}
       >
         <Text style={styles.startButtonText}>START MATCH</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.testButton}
+        onPress={handleStartTieBreakTest}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.testButtonText}>LOAD TIE-BREAK TEST (HE)</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.testButton}
+        onPress={handleStartPreGameWinTest}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.testButtonText}>LOAD PRE-GAME-WIN TEST (HE)</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -229,6 +323,41 @@ const styles = StyleSheet.create({
   },
   teamSection: {
     marginBottom: 22,
+  },
+  inlineLabel: {
+    color: '#83a6c9',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  inlineToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  inlineToggleBtn: {
+    flex: 1,
+    backgroundColor: '#0f2038',
+    borderWidth: 2,
+    borderColor: '#2a5588',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  inlineToggleBtnActive: {
+    borderColor: '#0050d4',
+    backgroundColor: '#152a4a',
+  },
+  inlineToggleText: {
+    color: '#c8d8e8',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  inlineToggleTextActive: {
+    color: '#fff',
   },
   teamHeader: {
     flexDirection: 'row',
@@ -317,5 +446,20 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: 3,
+  },
+  testButton: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2a5588',
+    backgroundColor: '#0f2038',
+    marginBottom: 12,
+  },
+  testButtonText: {
+    color: '#a8c8e8',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.5,
   },
 });

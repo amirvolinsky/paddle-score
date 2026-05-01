@@ -6,6 +6,8 @@ export type MatchFormat = 'best_of_3' | 'best_of_5';
 
 export interface MatchConfig {
   firstServer: 'A' | 'B';
+  firstServerPlayerA: 0 | 1;
+  firstServerPlayerB: 0 | 1;
   deuceMode: DeuceMode;
   matchFormat: MatchFormat;
 }
@@ -39,6 +41,13 @@ export interface GameScore {
   /** Locked for the match from {@link MatchConfig}. */
   deuceMode: DeuceMode;
   server: 'A' | 'B';
+  /** Current server within each team: 0 => first listed player, 1 => second listed player. */
+  serverPlayerA: 0 | 1;
+  serverPlayerB: 0 | 1;
+  /** Tie-break service anchor (first point server in the tie-break). */
+  tieBreakFirstServer: 'A' | 'B' | null;
+  tieBreakStartServerPlayerA: 0 | 1;
+  tieBreakStartServerPlayerB: 0 | 1;
   matchOver: boolean;
   winner: 'A' | 'B' | null;
   lastEvent: ScoreEvent;
@@ -53,7 +62,9 @@ export type ScoringAction =
   | { type: 'POINT_TEAM_B' }
   | { type: 'UNDO' }
   | { type: 'RESET' }
-  | { type: 'INIT_MATCH'; payload: MatchConfig };
+  | { type: 'INIT_MATCH'; payload: MatchConfig }
+  | { type: 'LOAD_TEST_PRE_TIEBREAK'; payload: MatchConfig }
+  | { type: 'LOAD_TEST_PRE_GAME_WIN'; payload: MatchConfig };
 
 export interface ScoringState {
   current: GameScore;

@@ -5,6 +5,11 @@ const MODEL_ID = 'eleven_v3';
 const isWeb = typeof document !== 'undefined';
 
 let currentWebAudio: HTMLAudioElement | null = null;
+let currentNativeSound: {
+  stopAsync: () => Promise<unknown>;
+  unloadAsync: () => Promise<unknown>;
+  setOnPlaybackStatusUpdate: (callback: ((status: unknown) => void) | null) => void;
+} | null = null;
 let fetchAbort: AbortController | null = null;
 
 /**
@@ -34,6 +39,18 @@ export function isElevenLabsConfigured(): boolean {
 export function stopElevenLabsPlayback(): void {
   fetchAbort?.abort();
   fetchAbort = null;
+
+  const nativeSound = currentNativeSound;
+  currentNativeSound = null;
+  if (nativeSound) {
+    try {
+      nativeSound.setOnPlaybackStatusUpdate(null);
+      nativeSound.stopAsync().catch(() => {});
+      nativeSound.unloadAsync().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }
 
   if (currentWebAudio) {
     const src = currentWebAudio.src;
@@ -105,6 +122,7 @@ async function playNativeAudio(arrayBuffer: ArrayBuffer, shouldContinue?: () => 
   }
 
   const { sound } = await ExpoAudio.Sound.createAsync({ uri: path }, { shouldPlay: false });
+  currentNativeSound = sound;
 
   await new Promise<void>((resolve) => {
     let settled = false;
@@ -112,6 +130,7 @@ async function playNativeAudio(arrayBuffer: ArrayBuffer, shouldContinue?: () => 
       if (settled) return;
       settled = true;
       clearTimeout(safety);
+      if (currentNativeSound === sound) currentNativeSound = null;
       sound.setOnPlaybackStatusUpdate(null);
       sound.unloadAsync().catch(() => {});
       FileSystem.deleteAsync(path, { idempotent: true }).catch(() => {});

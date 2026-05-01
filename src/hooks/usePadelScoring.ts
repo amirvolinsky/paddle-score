@@ -11,6 +11,8 @@ import type { AnnouncementStep, ClipId } from '../types/announcement';
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   firstServer: 'A',
+  firstServerPlayerA: 0,
+  firstServerPlayerB: 0,
   deuceMode: 'advantage',
   matchFormat: 'best_of_3',
 };
@@ -32,6 +34,11 @@ function createInitialScore(config: MatchConfig): GameScore {
     isDeuce: false,
     deuceMode: config.deuceMode,
     server: config.firstServer,
+    serverPlayerA: config.firstServerPlayerA,
+    serverPlayerB: config.firstServerPlayerB,
+    tieBreakFirstServer: null,
+    tieBreakStartServerPlayerA: config.firstServerPlayerA,
+    tieBreakStartServerPlayerB: config.firstServerPlayerB,
     matchOver: false,
     winner: null,
     lastEvent: 'new_game',
@@ -39,6 +46,37 @@ function createInitialScore(config: MatchConfig): GameScore {
     lastSetWinner: null,
     prevGamesA: 0,
     prevGamesB: 0,
+  };
+}
+
+function createPreTieBreakTestScore(config: MatchConfig): GameScore {
+  const base = createInitialScore(config);
+  return {
+    ...base,
+    // One point away from 6-6, so next Team B point enters tie-break.
+    gamesA: 6,
+    gamesB: 5,
+    teamA: '30',
+    teamB: '40',
+    server: 'B',
+    serverPlayerA: config.firstServerPlayerA,
+    serverPlayerB: config.firstServerPlayerB,
+    lastEvent: 'point',
+  };
+}
+
+function createPreGameWinTestScore(config: MatchConfig): GameScore {
+  const base = createInitialScore(config);
+  return {
+    ...base,
+    gamesA: 3,
+    gamesB: 2,
+    teamA: '40',
+    teamB: '30',
+    server: 'A',
+    serverPlayerA: config.firstServerPlayerA,
+    serverPlayerB: config.firstServerPlayerB,
+    lastEvent: 'point',
   };
 }
 
@@ -108,6 +146,14 @@ function winGame(score: GameScore, winner: 'A' | 'B'): GameScore {
   next.teamA = '0';
   next.teamB = '0';
   next.isDeuce = false;
+
+  // The serving team rotates player each time it serves a game.
+  if (score.server === 'A') {
+    next.serverPlayerA = score.serverPlayerA === 0 ? 1 : 0;
+  } else {
+    next.serverPlayerB = score.serverPlayerB === 0 ? 1 : 0;
+  }
+
   next.server = next.server === 'A' ? 'B' : 'A';
   next.lastGameWinner = winner;
   next.lastSetWinner = null;
@@ -130,16 +176,44 @@ function winGame(score: GameScore, winner: 'A' | 'B'): GameScore {
     next.isTieBreak = true;
     next.tieBreakPointsA = 0;
     next.tieBreakPointsB = 0;
+    next.tieBreakFirstServer = next.server;
+    next.tieBreakStartServerPlayerA = next.serverPlayerA;
+    next.tieBreakStartServerPlayerB = next.serverPlayerB;
     next.lastEvent = 'point';
     return updateMatchPointState(next);
   }
 
+  next.tieBreakFirstServer = null;
   next.lastEvent = 'game_won';
   return updateMatchPointState(next);
 }
 
+function tieBreakServerForPoint(score: GameScore, pointIndex: number): { team: 'A' | 'B'; player: 0 | 1 } {
+  const firstTeam = score.tieBreakFirstServer ?? score.server;
+  const otherTeam: 'A' | 'B' = firstTeam === 'A' ? 'B' : 'A';
+
+  const turnIndex = pointIndex === 0 ? 0 : 1 + Math.floor((pointIndex - 1) / 2);
+  const team: 'A' | 'B' = turnIndex % 2 === 0 ? firstTeam : otherTeam;
+  const turnsForTeam =
+    team === firstTeam ? Math.floor(turnIndex / 2) : Math.floor((turnIndex - 1) / 2);
+
+  const initialPlayer = team === 'A' ? score.tieBreakStartServerPlayerA : score.tieBreakStartServerPlayerB;
+  const player: 0 | 1 = turnsForTeam % 2 === 0 ? initialPlayer : (initialPlayer === 0 ? 1 : 0);
+
+  return { team, player };
+}
+
 function advanceTieBreak(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
   const next: GameScore = { ...score, lastEvent: 'point' as const, lastGameWinner: null, lastSetWinner: null };
+  const pointsPlayedBefore = score.tieBreakPointsA + score.tieBreakPointsB;
+  const currentPointServer = tieBreakServerForPoint(score, pointsPlayedBefore);
+  next.server = currentPointServer.team;
+  if (currentPointServer.team === 'A') {
+    next.serverPlayerA = currentPointServer.player;
+  } else {
+    next.serverPlayerB = currentPointServer.player;
+  }
+
   if (scoringTeam === 'A') {
     next.tieBreakPointsA += 1;
   } else {
@@ -161,8 +235,20 @@ function advanceTieBreak(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
       next.gamesA = 6;
       next.gamesB = 7;
     }
+    const firstTieBreakServer = score.tieBreakFirstServer ?? score.server;
+    const nextSetServer: 'A' | 'B' = firstTieBreakServer === 'A' ? 'B' : 'A';
+    next.server = nextSetServer;
+    next.tieBreakFirstServer = null;
     next.lastGameWinner = scoringTeam;
     return winSet(next, scoringTeam);
+  }
+
+  const nextPointServer = tieBreakServerForPoint(score, pointsPlayedBefore + 1);
+  next.server = nextPointServer.team;
+  if (nextPointServer.team === 'A') {
+    next.serverPlayerA = nextPointServer.player;
+  } else {
+    next.serverPlayerB = nextPointServer.player;
   }
 
   return updateMatchPointState(next);
@@ -180,6 +266,7 @@ function winSet(score: GameScore, winner: 'A' | 'B'): GameScore {
   next.tieBreakPointsA = 0;
   next.tieBreakPointsB = 0;
   next.isTieBreak = false;
+  next.tieBreakFirstServer = null;
   next.isMatchPoint = false;
   next.matchPointTeam = null;
 
@@ -276,6 +363,16 @@ function scoringReducer(state: ScoringState, action: ScoringAction): ScoringStat
         current: createInitialScore(action.payload),
         history: [],
       };
+    case 'LOAD_TEST_PRE_TIEBREAK':
+      return {
+        current: createPreTieBreakTestScore(action.payload),
+        history: [],
+      };
+    case 'LOAD_TEST_PRE_GAME_WIN':
+      return {
+        current: createPreGameWinTestScore(action.payload),
+        history: [],
+      };
     default:
       return state;
   }
@@ -289,6 +386,14 @@ export function usePadelScoring() {
   const undo = useCallback(() => dispatch({ type: 'UNDO' }), []);
   const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
   const initMatch = useCallback((config: MatchConfig) => dispatch({ type: 'INIT_MATCH', payload: config }), []);
+  const loadTestPreTieBreak = useCallback(
+    (config: MatchConfig) => dispatch({ type: 'LOAD_TEST_PRE_TIEBREAK', payload: config }),
+    []
+  );
+  const loadTestPreGameWin = useCallback(
+    (config: MatchConfig) => dispatch({ type: 'LOAD_TEST_PRE_GAME_WIN', payload: config }),
+    []
+  );
 
   return {
     score: state.current,
@@ -298,6 +403,8 @@ export function usePadelScoring() {
     undo,
     reset,
     initMatch,
+    loadTestPreTieBreak,
+    loadTestPreGameWin,
   };
 }
 
@@ -376,12 +483,25 @@ function teamName(names: PlayerNames, team: 'A' | 'B'): string {
   return `${pair[0]} ו${pair[1]}`;
 }
 
+function serverPlayerName(names: PlayerNames, score: GameScore): string {
+  if (score.server === 'A') {
+    return names.teamA[score.serverPlayerA];
+  }
+  return names.teamB[score.serverPlayerB];
+}
+
+function tieBreakLeaderTeamName(score: GameScore, names: PlayerNames): string | null {
+  if (score.tieBreakPointsA === score.tieBreakPointsB) return null;
+  return score.tieBreakPointsA > score.tieBreakPointsB ? teamName(names, 'A') : teamName(names, 'B');
+}
+
 export function buildSpeechText(score: GameScore, names: PlayerNames): string {
   const serverIsA = score.server === 'A';
   const serverTeam: 'A' | 'B' = serverIsA ? 'A' : 'B';
   const receiverTeam: 'A' | 'B' = serverIsA ? 'B' : 'A';
   const serverLabel = teamName(names, serverTeam);
   const receiverLabel = teamName(names, receiverTeam);
+  const serverPlayer = serverPlayerName(names, score);
 
   const serverGames = serverIsA ? score.gamesA : score.gamesB;
   const receiverGames = serverIsA ? score.gamesB : score.gamesA;
@@ -396,13 +516,12 @@ export function buildSpeechText(score: GameScore, names: PlayerNames): string {
   }
 
   if (score.lastEvent === 'set_won') {
-    const wGames = score.lastSetWinner === 'A' ? score.prevGamesA : score.prevGamesB;
-    const lGames = score.lastSetWinner === 'A' ? score.prevGamesB : score.prevGamesA;
-    return `גיים וסט. ${hebNum(wGames)}, ${hebNum(lGames)}. סטים: ${hebNum(serverSets)}, ${hebNum(receiverSets)}. סרבים של.`;
+    const setWinnerTeam = score.lastSetWinner === 'A' ? teamName(names, 'A') : teamName(names, 'B');
+    return `התוצאה היא ${hebNum(serverSets)} ${hebNum(receiverSets)} ל${setWinnerTeam}. סרבים של ${serverPlayer}.`;
   }
 
   if (score.lastEvent === 'game_won') {
-    return `גיים. ${serverLabel} ${hebNum(serverGames)}, ${receiverLabel} ${hebNum(receiverGames)}. סרבים של ${serverLabel}.`;
+    return `גיים. ${serverLabel} ${hebNum(serverGames)}, ${receiverLabel} ${hebNum(receiverGames)}. סרבים של ${serverPlayer}.`;
   }
 
   if (score.lastEvent === 'new_game') {
@@ -411,7 +530,13 @@ export function buildSpeechText(score: GameScore, names: PlayerNames): string {
 
   if (score.lastEvent === 'point') {
     if (score.isTieBreak && score.tieBreakPointsA === 0 && score.tieBreakPointsB === 0) {
-      return `Tie Break! ${buildPointRallySpeechText(score, names)}`;
+      return `Tie Break! ${buildPointRallySpeechText(score, names)} סרבים של ${serverPlayer}.`;
+    }
+    if (score.isTieBreak) {
+      const leader = tieBreakLeaderTeamName(score, names);
+      const base = `${hebNum(score.tieBreakPointsA)} ${hebNum(score.tieBreakPointsB)}`;
+      const scoreWithLeader = leader ? `${base} ל${leader}.` : `${base}.`;
+      return `${scoreWithLeader} סרבים של ${serverPlayer}.`;
     }
     if (score.isMatchPoint) {
       return `Matchpoint! ${buildPointRallySpeechText(score, names)}`;
@@ -431,6 +556,7 @@ export function buildSpeechTextAfterCrowdCheer(score: GameScore, names: PlayerNa
   const receiverTeam: 'A' | 'B' = serverIsA ? 'B' : 'A';
   const serverLabel = teamName(names, serverTeam);
   const receiverLabel = teamName(names, receiverTeam);
+  const serverPlayer = serverPlayerName(names, score);
 
   const serverGames = serverIsA ? score.gamesA : score.gamesB;
   const receiverGames = serverIsA ? score.gamesB : score.gamesA;
@@ -444,13 +570,12 @@ export function buildSpeechTextAfterCrowdCheer(score: GameScore, names: PlayerNa
   }
 
   if (score.lastEvent === 'set_won') {
-    const wGames = score.lastSetWinner === 'A' ? score.prevGamesA : score.prevGamesB;
-    const lGames = score.lastSetWinner === 'A' ? score.prevGamesB : score.prevGamesA;
-    return `${hebNum(wGames)}, ${hebNum(lGames)}. סטים: ${hebNum(serverSets)}, ${hebNum(receiverSets)}. סרבים של.`;
+    const setWinnerTeam = score.lastSetWinner === 'A' ? teamName(names, 'A') : teamName(names, 'B');
+    return `התוצאה היא ${hebNum(serverSets)} ${hebNum(receiverSets)} ל${setWinnerTeam}. סרבים של ${serverPlayer}.`;
   }
 
   if (score.lastEvent === 'game_won') {
-    return `${serverLabel} ${hebNum(serverGames)}, ${receiverLabel} ${hebNum(receiverGames)}. סרבים של ${serverLabel}.`;
+    return `${serverLabel} ${hebNum(serverGames)}, ${receiverLabel} ${hebNum(receiverGames)}. סרבים של ${serverPlayer}.`;
   }
 
   return '';

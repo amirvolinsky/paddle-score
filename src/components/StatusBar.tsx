@@ -9,9 +9,9 @@ interface Props {
 }
 
 export function ConnectionStatus({ score, bleConnected, names }: Props) {
-  const serverNames = score.server === 'A'
-    ? `${names.teamA[0]} & ${names.teamA[1]}`
-    : `${names.teamB[0]} & ${names.teamB[1]}`;
+  const serverName = score.server === 'A'
+    ? names.teamA[score.serverPlayerA]
+    : names.teamB[score.serverPlayerB];
   const matchFormatLabel = score.setsRequiredToWin === 3 ? 'Best of 5' : 'Best of 3';
 
   return (
@@ -29,7 +29,7 @@ export function ConnectionStatus({ score, bleConnected, names }: Props) {
 
         <View style={styles.serverBadge}>
           <Text style={styles.serverText}>
-            🎾 {serverNames}
+            🎾 {serverName}
           </Text>
         </View>
 

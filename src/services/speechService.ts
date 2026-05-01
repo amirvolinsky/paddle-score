@@ -12,6 +12,7 @@ let isSpeaking = false;
 let announceGeneration = 0;
 
 const TTS_NAME_PITCH_FALLBACK = 0.88;
+const STADIUM_TO_TTS_GAP_MS = 250;
 
 let nameVoiceReady = false;
 let nameVoiceId: string | undefined;
@@ -74,6 +75,10 @@ export async function warmUpNameVoice(): Promise<void> {
   await ensureHebrewMaleVoiceId();
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function speakSystemTts(text: string, myGen: number): Promise<void> {
   const voice = await ensureHebrewMaleVoiceId();
   if (myGen !== announceGeneration) return;
@@ -124,6 +129,13 @@ export async function announceScore(score: GameScore, names: PlayerNames): Promi
     if (matchWin) {
       await playSetWinVoice();
       if (myGen !== announceGeneration) return;
+    }
+
+    if (setVoiceFirst || matchWin) {
+      // Give native audio session a short handoff window before TTS fetch/playback.
+      await sleep(STADIUM_TO_TTS_GAP_MS);
+      if (myGen !== announceGeneration) return;
+      stopCrowdCheer();
     }
 
     const text = (

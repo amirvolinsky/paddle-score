@@ -1,5 +1,12 @@
 const fs = require('fs');
 const path = require('path');
+const { loadProjectEnv } = require('@expo/env');
+
+// Load `.env` / `.env.local` before reading keys (see `.env.example`; `.env` is gitignored).
+loadProjectEnv(__dirname, {
+  mode: process.env.NODE_ENV || 'development',
+  silent: true,
+});
 
 const appJson = JSON.parse(fs.readFileSync(path.join(__dirname, 'app.json'), 'utf8'));
 

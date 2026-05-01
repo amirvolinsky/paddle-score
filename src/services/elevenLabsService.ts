@@ -7,13 +7,28 @@ const isWeb = typeof document !== 'undefined';
 let currentWebAudio: HTMLAudioElement | null = null;
 let fetchAbort: AbortController | null = null;
 
-function getExtra(): Record<string, string | undefined> {
-  return (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
+/**
+ * Web: `Constants.expoConfig.extra` often omits dynamic `app.config.js` fields (manifest is `APP_MANIFEST`).
+ * Metro inlines `EXPO_PUBLIC_*` from `.env` into the bundle — use those as fallback.
+ */
+function getElevenLabsCredentials(): { apiKey: string; voiceId: string } {
+  const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
+  const apiKey = (
+    extra.elevenLabsApiKey ??
+    process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY ??
+    ''
+  ).trim();
+  const voiceId = (
+    extra.elevenLabsVoiceId ??
+    process.env.EXPO_PUBLIC_ELEVENLABS_VOICE_ID ??
+    ''
+  ).trim();
+  return { apiKey, voiceId };
 }
 
 export function isElevenLabsConfigured(): boolean {
-  const { elevenLabsApiKey, elevenLabsVoiceId } = getExtra();
-  return Boolean(elevenLabsApiKey?.trim() && elevenLabsVoiceId?.trim());
+  const { apiKey, voiceId } = getElevenLabsCredentials();
+  return Boolean(apiKey && voiceId);
 }
 
 export function stopElevenLabsPlayback(): void {
@@ -126,9 +141,7 @@ export async function speakElevenLabsText(
   const trimmed = text.trim();
   if (!trimmed) return;
 
-  const { elevenLabsApiKey, elevenLabsVoiceId } = getExtra();
-  const apiKey = elevenLabsApiKey?.trim();
-  const voiceId = elevenLabsVoiceId?.trim();
+  const { apiKey, voiceId } = getElevenLabsCredentials();
   if (!apiKey || !voiceId) return;
 
   stopElevenLabsPlayback();

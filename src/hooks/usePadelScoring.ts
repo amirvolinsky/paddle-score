@@ -106,13 +106,8 @@ function advanceGame(score: GameScore, scoringTeam: 'A' | 'B'): GameScore {
     return advanceTieBreak(score, scoringTeam);
   }
 
-  const prevHighScoreNonDeuce =
-    score.teamA === '40' || score.teamB === '40'
-      ? !(score.teamA === '40' && score.teamB === '40')
-      : false;
-
   const next: GameScore = { ...score, lastEvent: 'point' as const, lastGameWinner: null, lastSetWinner: null };
-  if (prevHighScoreNonDeuce) {
+  if (shouldAppendLeaderTeamName(score)) {
     next.highScoreLeaderNamesSpokenThisGame = true;
   }
   const scorerKey = `team${scoringTeam}` as 'teamA' | 'teamB';
@@ -460,9 +455,28 @@ function hebPoint(p: PadelPoint): string {
   return hebNum(p);
 }
 
+/** Team-local 40–0 / 0–40 — user prefers no leader-name suffix here. */
+function isFortyLoveTeams(score: GameScore): boolean {
+  return (
+    (score.teamA === '40' && score.teamB === '0') || (score.teamA === '0' && score.teamB === '40')
+  );
+}
+
+/**
+ * First non–forty-love rally line with a 40 (before deuce / advantage TTS) may append the leader’s team name.
+ */
+function shouldAppendLeaderTeamName(score: GameScore): boolean {
+  if (score.isTieBreak) return false;
+  if (score.teamA === 'Ad' || score.teamB === 'Ad') return false;
+  if (score.teamA === '40' && score.teamB === '40') return false;
+  if (!(score.teamA === '40' || score.teamB === '40')) return false;
+  if (isFortyLoveTeams(score)) return false;
+  return score.teamA !== score.teamB;
+}
+
 /**
  * In-rally score line for TTS — server’s points then receiver’s.
- * With names: first 40 (non-deuce) in a game may append the leading team; later 40 lines in that game omit names.
+ * With names: first eligible 40 line (e.g. 40–15, not 40–0) may append the leading team; later 40 lines omit names.
  */
 export function buildPointRallySpeechText(score: GameScore, names?: PlayerNames): string {
   if (score.isTieBreak) {
@@ -497,7 +511,7 @@ export function buildPointRallySpeechText(score: GameScore, names?: PlayerNames)
 
   if (hasHighScore && names) {
     const leader = serverPoints === '40' ? serverTeam : receiverTeam;
-    if (!score.highScoreLeaderNamesSpokenThisGame) {
+    if (!score.highScoreLeaderNamesSpokenThisGame && shouldAppendLeaderTeamName(score)) {
       return `${hebPoint(serverPoints)} ${hebPoint(receiverPoints)} ל${teamName(names, leader)}.`;
     }
     return `${hebPoint(serverPoints)} ${hebPoint(receiverPoints)}.`;
@@ -667,7 +681,7 @@ export function buildPointRallyAnnouncementSteps(score: GameScore, names?: Playe
     { type: 'clip', id: pointToClip(receiverPoints) },
   ];
 
-  if (hasHighScore && names && !score.highScoreLeaderNamesSpokenThisGame) {
+  if (hasHighScore && names && !score.highScoreLeaderNamesSpokenThisGame && shouldAppendLeaderTeamName(score)) {
     const leader = serverPoints === '40' ? serverTeam : receiverTeam;
     steps.push({ type: 'tts', text: `ל${teamName(names, leader)}` });
   }

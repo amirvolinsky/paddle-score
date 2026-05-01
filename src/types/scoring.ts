@@ -47,8 +47,8 @@ export interface GameScore {
   /** Locked for the match from {@link MatchConfig}. */
   deuceMode: DeuceMode;
   /**
-   * Once true for the current game: 40/x or x/40 announcements no longer append the leading team’s name
-   * (first time someone reaches 40 before deuce still includes names). Resets each new game.
+   * Once true for the current game: non–forty-love 40 lines no longer append the leading team’s name
+   * (first such line with names includes the leader; pure 40–0 / 0–40 omits names). Resets each new game/set.
    */
   highScoreLeaderNamesSpokenThisGame: boolean;
   server: 'A' | 'B';
